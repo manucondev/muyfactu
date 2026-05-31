@@ -21,6 +21,30 @@ interface ConceptoRow {
   precio: number
 }
 
+const MAX_FILES = 5
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+const ACCEPTED_FILE_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"]
+const ACCEPTED_EXTENSIONS = ["pdf", "jpg", "jpeg", "png", "webp"]
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function sanitizeFileName(name: string) {
+  const normalized = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+
+  return normalized || `adjunto-${Date.now()}`
+}
+
+function isAcceptedFile(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase() || ""
+  return ACCEPTED_FILE_TYPES.includes(file.type) || ACCEPTED_EXTENSIONS.includes(extension)
+}
+
 export default function NuevaSolicitudPage() {
   const { cliente } = useAuth()
   const router = useRouter()
@@ -55,7 +79,6 @@ export default function NuevaSolicitudPage() {
   const [submitting, setSubmitting] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
-  const [pendingSolicitud, setPendingSolicitud] = useState<any>(null)
 
   // Cargar datos del cliente al montar
   useEffect(() => {
@@ -100,6 +123,38 @@ export default function NuevaSolicitudPage() {
     )
   }
 
+  function addFiles(newFiles: File[]) {
+    const accepted: File[] = []
+
+    for (const file of newFiles) {
+      if (!isAcceptedFile(file)) {
+        toast.error(`Formato no permitido: ${file.name}`)
+        continue
+      }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        toast.error(`${file.name} supera el límite de 10 MB`)
+        continue
+      }
+      accepted.push(file)
+    }
+
+    if (accepted.length === 0) return
+
+    setFiles(prev => {
+      const remainingSlots = MAX_FILES - prev.length
+      if (remainingSlots <= 0) {
+        toast.error(`Solo puedes adjuntar hasta ${MAX_FILES} archivos`)
+        return prev
+      }
+
+      if (accepted.length > remainingSlots) {
+        toast.error(`Solo se añadirán ${remainingSlots} archivo(s); el máximo es ${MAX_FILES}`)
+      }
+
+      return [...prev, ...accepted.slice(0, remainingSlots)]
+    })
+  }
+
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
@@ -111,13 +166,39 @@ export default function NuevaSolicitudPage() {
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
-    if (e.dataTransfer.files) {
-      setFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)])
-    }
+    if (e.dataTransfer.files) addFiles(Array.from(e.dataTransfer.files))
   }, [])
+
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) addFiles(Array.from(e.target.files))
+    e.target.value = ""
+  }
 
   function removeFile(idx: number) {
     setFiles(files.filter((_, i) => i !== idx))
+  }
+
+  async function uploadAdjuntos(solicitudId: string) {
+    if (!cliente || files.length === 0) return []
+
+    const uploadedPaths: string[] = []
+
+    for (const file of files) {
+      const safeName = sanitizeFileName(file.name)
+      const path = `${cliente.id}/${solicitudId}/${Date.now()}-${safeName}`
+      const { error } = await supabase.storage
+        .from("solicitud-adjuntos")
+        .upload(path, file, {
+          cacheControl: "3600",
+          contentType: file.type || undefined,
+          upsert: false,
+        })
+
+      if (error) throw new Error(`No se pudo subir ${file.name}: ${error.message}`)
+      uploadedPaths.push(path)
+    }
+
+    return uploadedPaths
   }
 
   async function handleSubmit() {
@@ -129,7 +210,6 @@ export default function NuevaSolicitudPage() {
 
     // Si hay cambios en los datos, mostrar diálogo de confirmación
     if (hayDatosCambiados()) {
-      setPendingSolicitud({ conceptos, observaciones, files })
       setConfirmDialogOpen(true)
       return
     }
@@ -168,10 +248,14 @@ export default function NuevaSolicitudPage() {
         }
       }
 
+      const solicitudId = crypto.randomUUID()
+      const adjuntos = await uploadAdjuntos(solicitudId)
+
       // Insert solicitud
       const { data, error } = await supabase
       .from("solicitudes_factura")
       .insert({
+        id: solicitudId,
         cliente_id: cliente.id,
         conceptos: conceptos.map(c => ({
           concepto: c.concepto,
@@ -181,6 +265,7 @@ export default function NuevaSolicitudPage() {
           total: c.cantidad * c.precio,
         })),
         observaciones_cliente: observaciones || null,
+        adjuntos: adjuntos.length > 0 ? adjuntos : null,
       })
       .select()
       .single()
@@ -351,6 +436,55 @@ export default function NuevaSolicitudPage() {
               Total: <span className="text-lg font-bold text-primary">{formatCurrency(total)}</span>
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Adjuntos */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Adjuntos</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div
+            onDragEnter={handleDrag}
+            onDragOver={handleDrag}
+            onDragLeave={handleDrag}
+            onDrop={handleDrop}
+            className={`rounded-lg border border-dashed p-6 text-center transition-colors ${dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 bg-muted/20"}`}
+          >
+            <FileUp className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-medium">Arrastra archivos aquí o selecciónalos manualmente</p>
+            <p className="mt-1 text-xs text-muted-foreground">PDF o imágenes. Máximo {MAX_FILES} archivos de 10 MB.</p>
+            <Input
+              id="adjuntos-solicitud"
+              type="file"
+              multiple
+              accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+              onChange={handleFileInput}
+              className="hidden"
+            />
+            <Button type="button" variant="outline" size="sm" className="mt-3" asChild>
+              <Label htmlFor="adjuntos-solicitud" className="cursor-pointer">
+                <Upload className="mr-2 h-4 w-4" /> Seleccionar archivos
+              </Label>
+            </Button>
+          </div>
+
+          {files.length > 0 && (
+            <div className="space-y-2">
+              {files.map((file, idx) => (
+                <div key={`${file.name}-${idx}`} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeFile(idx)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

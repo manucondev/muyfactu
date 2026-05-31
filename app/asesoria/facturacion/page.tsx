@@ -316,6 +316,19 @@ export default function FacturacionPage() {
     window.open(data.signedUrl, "_blank", "noopener,noreferrer")
   }
 
+  async function openSolicitudAdjunto(path: string) {
+    const { data, error } = await supabase.storage
+      .from("solicitud-adjuntos")
+      .createSignedUrl(path, 60 * 5)
+
+    if (error || !data?.signedUrl) {
+      toast.error("No se ha podido abrir el adjunto")
+      return
+    }
+
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer")
+  }
+
   async function handleVerFactura(factura: Factura) {
     setFacturaOpen(true)
     setLoadingLineas(true)
@@ -590,6 +603,19 @@ export default function FacturacionPage() {
               </div>
               {(reviewSolicitud as any).observaciones_cliente && (
                 <div><Label>Observaciones del Cliente</Label><p className="mt-1 rounded-lg bg-muted p-3 text-sm">{(reviewSolicitud as any).observaciones_cliente}</p></div>
+              )}
+              {reviewSolicitud.adjuntos && reviewSolicitud.adjuntos.length > 0 && (
+                <div>
+                  <Label>Adjuntos del cliente</Label>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {reviewSolicitud.adjuntos.map((path, index) => (
+                      <Button key={`${path}-${index}`} type="button" variant="outline" size="sm" className="justify-start" onClick={() => openSolicitudAdjunto(path)}>
+                        <Download className="mr-2 h-4 w-4" />
+                        <span className="truncate">{path.split("/").pop()}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
               )}
               {reviewSolicitud.estado === "pendiente" && (
                 <div className="flex gap-2">

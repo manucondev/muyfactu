@@ -9,6 +9,9 @@ export interface Asesoria {
   direccion: string | null
   ciudad: string | null
   logo_url: string | null
+  certificado_url: string | null
+  certificado_password_encrypted: string | null
+  estado: string | null
   created_at: string
 }
 
@@ -55,11 +58,14 @@ export interface SolicitudFactura {
   cliente_id: string
   asesoria_id: string
   conceptos: Concepto[]
-  observaciones: string | null
+  observaciones_cliente: string | null
+  observaciones_asesoria: string | null
   adjuntos: string[] | null
   estado: "pendiente" | "aprobada" | "rechazada" | "facturada"
   motivo_rechazo: string | null
   factura_id: string | null
+  fecha_revision: string | null
+  fecha_aprobacion: string | null
   created_at: string
   cliente?: Cliente
 }

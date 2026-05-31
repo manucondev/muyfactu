@@ -11,6 +11,7 @@ import { EstadoBadge } from "@/components/estado-badge"
 import { EmptyState } from "@/components/empty-state"
 import { formatCurrency, formatDate, calcImporte } from "@/lib/format"
 import { FileStack, Eye, Download, AlertTriangle, FilePlus } from "lucide-react"
+import { toast } from "sonner"
 import Link from "next/link"
 import type { SolicitudFactura } from "@/lib/types"
 import { useSearchParams } from "next/navigation"
@@ -42,6 +43,7 @@ export default function SolicitudesPage() {
 
     if (error || !data?.signedUrl) {
       console.error(error)
+      toast.error("No se pudo abrir el adjunto")
       return
     }
 
@@ -206,10 +208,10 @@ export default function SolicitudesPage() {
               </div>
 
               {/* Observaciones */}
-              {selected.observaciones && (
+              {selected.observaciones_cliente && (
                 <div>
                   <h4 className="mb-1 text-sm font-medium">Observaciones</h4>
-                  <p className="rounded-md bg-muted p-3 text-sm">{selected.observaciones}</p>
+                  <p className="rounded-md bg-muted p-3 text-sm">{selected.observaciones_cliente}</p>
                 </div>
               )}
 

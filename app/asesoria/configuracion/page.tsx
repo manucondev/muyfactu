@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Upload, Shield, Palette, Loader2, CheckCircle, Image as ImageIcon } from "lucide-react"
+import { Upload, Shield, Palette, Loader2, CheckCircle, Image as ImageIcon, Trash2, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 
 export default function ConfiguracionPage() {
@@ -28,6 +28,7 @@ export default function ConfiguracionPage() {
   const [certStatus, setCertStatus] = useState("sin_certificado")
   const [certFile, setCertFile] = useState<File | null>(null)
   const [certPassword, setCertPassword] = useState("")
+  const [certFileName, setCertFileName] = useState("")
 
   // Plantilla tab
   const [plantilla, setPlantilla] = useState({
@@ -47,14 +48,13 @@ export default function ConfiguracionPage() {
     })
 
     async function loadConfig() {
-      const { data: cert } = await supabase
-        .from("certificados_digitales")
-        .select("*")
-        .eq("asesoria_id", asesoria!.id)
-        .order("fecha_subida", { ascending: false })
-        .limit(1)
-        .single()
-      if (cert) setCertStatus(cert.estado)
+      if (asesoria!.certificado_url) {
+        setCertStatus("activo")
+        setCertFileName(asesoria!.certificado_url.split("/").pop() || "certificado digital")
+      } else {
+        setCertStatus("sin_certificado")
+        setCertFileName("")
+      }
 
       const { data: pl } = await supabase
         .from("configuracion_plantilla")
@@ -100,18 +100,72 @@ export default function ConfiguracionPage() {
 
   async function uploadCert() {
     if (!asesoria || !certFile) return
+
+    const extension = certFile.name.split(".").pop()?.toLowerCase()
+    if (!extension || !["pfx", "p12"].includes(extension)) {
+      toast.error("El certificado debe tener formato .pfx o .p12")
+      return
+    }
+
+    if (certFile.size > 5 * 1024 * 1024) {
+      toast.error("El certificado no puede superar los 5 MB")
+      return
+    }
+
     setSaving(true)
-    const path = `${asesoria.id}/${certFile.name}`
-    const { error } = await supabase.storage.from("certificados").upload(path, certFile, { upsert: true })
+    const path = `${asesoria.id}/certificado.${extension}`
+    const { error } = await supabase.storage.from("certificados").upload(path, certFile, {
+      cacheControl: "3600",
+      contentType: certFile.type || "application/octet-stream",
+      upsert: true,
+    })
     if (error) { toast.error(error.message); setSaving(false); return }
 
-    await supabase.from("certificados_digitales").insert({
-      asesoria_id: asesoria.id,
-      nombre_archivo: certFile.name,
-      estado: "activo",
-    })
+    const { error: updateError } = await supabase.from("asesorias").update({
+      certificado_url: path,
+      certificado_password_encrypted: certPassword ? "configured" : null,
+    }).eq("id", asesoria.id)
+
+    if (updateError) { toast.error(updateError.message); setSaving(false); return }
+
     setCertStatus("activo")
+    setCertFileName(certFile.name)
+    setCertFile(null)
+    setCertPassword("")
     toast.success("Certificado subido correctamente")
+    refreshProfile()
+    setSaving(false)
+  }
+
+  async function deleteCert() {
+    if (!asesoria?.certificado_url) return
+    setSaving(true)
+
+    const { error: removeError } = await supabase.storage
+      .from("certificados")
+      .remove([asesoria.certificado_url])
+
+    if (removeError) {
+      toast.error(removeError.message)
+      setSaving(false)
+      return
+    }
+
+    const { error: updateError } = await supabase.from("asesorias").update({
+      certificado_url: null,
+      certificado_password_encrypted: null,
+    }).eq("id", asesoria.id)
+
+    if (updateError) {
+      toast.error(updateError.message)
+      setSaving(false)
+      return
+    }
+
+    setCertStatus("sin_certificado")
+    setCertFileName("")
+    toast.success("Certificado eliminado")
+    refreshProfile()
     setSaving(false)
   }
 
@@ -214,14 +268,29 @@ export default function ConfiguracionPage() {
               <CardDescription>Sube tu certificado digital para la firma electronica</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <div className="flex items-center gap-3 rounded-lg bg-muted p-4">
-                <CheckCircle className={`h-5 w-5 ${certStatus === "activo" ? "text-emerald-600" : "text-muted-foreground"}`} />
-                <div>
+              <div className="flex items-start gap-3 rounded-lg bg-muted p-4">
+                <CheckCircle className={`mt-0.5 h-5 w-5 ${certStatus === "activo" ? "text-emerald-600" : "text-muted-foreground"}`} />
+                <div className="flex-1">
                   <p className="text-sm font-medium">
-                    {certStatus === "activo" ? "Certificado activo" : certStatus === "caducado" ? "Certificado caducado" : "Sin certificado"}
+                    {certStatus === "activo" ? "Certificado activo" : "Sin certificado"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {certStatus === "activo" ? "Tu certificado esta configurado correctamente" : "Sube un certificado .pfx o .p12"}
+                    {certStatus === "activo" ? `Archivo configurado: ${certFileName || "certificado digital"}` : "Sube un certificado .pfx o .p12"}
+                  </p>
+                </div>
+                {certStatus === "activo" && (
+                  <Button type="button" variant="outline" size="sm" onClick={deleteCert} disabled={saving}>
+                    <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                  </Button>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <div className="flex gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p>
+                    En este prototipo el certificado queda almacenado en un bucket privado para preparar futuras integraciones.
+                    La contraseña no se guarda en claro; la firma y el envío real a AEAT quedan fuera del alcance actual.
                   </p>
                 </div>
               </div>
@@ -231,8 +300,9 @@ export default function ConfiguracionPage() {
                 <Input type="file" accept=".pfx,.p12" onChange={e => setCertFile(e.target.files?.[0] || null)} />
               </div>
               <div className="flex flex-col gap-2">
-                <Label>Contrasena del certificado</Label>
-                <Input type="password" value={certPassword} onChange={e => setCertPassword(e.target.value)} placeholder="Contrasena del certificado" />
+                <Label>Contraseña del certificado</Label>
+                <Input type="password" value={certPassword} onChange={e => setCertPassword(e.target.value)} placeholder="Se solicitará cuando se implemente la firma real" />
+                <p className="text-xs text-muted-foreground">No se almacena la contraseña en claro.</p>
               </div>
               <Button onClick={uploadCert} disabled={saving || !certFile} className="w-fit">
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -321,7 +391,7 @@ export default function ConfiguracionPage() {
                       <p className="text-[10px] text-muted-foreground">{plantilla.footer_texto}</p>
                     </div>
                   )}
-                  <p className="mt-2 text-center text-[9px] text-muted-foreground">Cumple con la normativa Verifactu</p>
+                  <p className="mt-2 text-center text-[9px] text-muted-foreground">Preparada para registro técnico tipo SIF</p>
                 </div>
               </CardContent>
             </Card>
