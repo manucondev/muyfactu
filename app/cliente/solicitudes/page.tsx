@@ -35,6 +35,19 @@ export default function SolicitudesPage() {
   const searchParams = useSearchParams()
   const previewId = searchParams.get("preview")
 
+  async function openAdjunto(path: string) {
+    const { data, error } = await supabase.storage
+      .from("solicitud-adjuntos")
+      .createSignedUrl(path, 60 * 5)
+
+    if (error || !data?.signedUrl) {
+      console.error(error)
+      return
+    }
+
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer")
+  }
+
   useEffect(() => {
     if (!cliente) return
     async function load() {
@@ -206,11 +219,9 @@ export default function SolicitudesPage() {
                   <h4 className="mb-2 text-sm font-medium">Adjuntos</h4>
                   <div className="space-y-1">
                     {selected.adjuntos.map((a, i) => (
-                      <Button key={i} variant="outline" size="sm" className="w-full justify-start" asChild>
-                        <a href={supabase.storage.from("solicitud-adjuntos").getPublicUrl(a).data.publicUrl} target="_blank" rel="noreferrer">
-                          <Download className="mr-2 h-3.5 w-3.5" />
-                          {a.split("/").pop()}
-                        </a>
+                      <Button key={i} variant="outline" size="sm" className="w-full justify-start" onClick={() => openAdjunto(a)}>
+                        <Download className="mr-2 h-3.5 w-3.5" />
+                        {a.split("/").pop()}
                       </Button>
                     ))}
                   </div>

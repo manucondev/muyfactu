@@ -83,6 +83,9 @@ export interface Factura {
   pdf_url: string | null
   xml_url: string | null
   hash_sha256: string | null
+  hash_anterior: string | null
+  datos_hash: Record<string, unknown> | null
+  fecha_registro: string | null
   qr_data: string | null
   observaciones: string | null
   created_at: string

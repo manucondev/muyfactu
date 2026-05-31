@@ -88,12 +88,21 @@ export default function FacturasClientePage() {
   }
 
   async function downloadPdf(factura: Factura) {
-    if (factura.pdf_url) {
-      const { data } = supabase.storage.from("facturas").getPublicUrl(factura.pdf_url)
-      window.open(data.publicUrl, "_blank")
-    } else {
+    if (!factura.pdf_url) {
       toast.error("PDF no disponible")
+      return
     }
+
+    const { data, error } = await supabase.storage
+      .from("facturas")
+      .createSignedUrl(factura.pdf_url, 60 * 5)
+
+    if (error || !data?.signedUrl) {
+      toast.error("No se ha podido abrir el PDF")
+      return
+    }
+
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer")
   }
 
   function exportCSV() {

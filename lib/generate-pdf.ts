@@ -6,6 +6,8 @@ export interface FacturaData {
   fecha_emision: string
   fecha_vencimiento: string
   qr_data: string
+  hash_sha256?: string | null
+  hash_anterior?: string | null
   observaciones: string | null
   base_imponible: number
   iva_total: number
@@ -373,13 +375,26 @@ export async function generateFacturaPDF(data: FacturaData): Promise<Blob> {
     console.error("Error generando QR:", err)
   }
 
+  // Información técnica del registro
+  doc.setTextColor(gray400)
+  doc.setFontSize(6.5)
+  doc.setFont("helvetica", "normal")
+  const hashInfo = data.hash_sha256
+    ? `Hash SHA-256: ${data.hash_sha256.substring(0, 24)}...${data.hash_sha256.substring(data.hash_sha256.length - 8)}`
+    : "Registro técnico pendiente de hash"
+  doc.text(hashInfo, margin, footerY + 4)
+
+  if (data.hash_anterior) {
+    doc.text(`Hash anterior: ${data.hash_anterior.substring(0, 20)}...`, margin, footerY + 8)
+  }
+
   // Disclaimer legal
   doc.setTextColor(gray400)
   doc.setFontSize(7)
   doc.setFont("helvetica", "normal")
-  const disclaimer = "Esta factura ha sido generada electrónicamente y es válida sin firma ni sello según el Real Decreto 1619/2012."
+  const disclaimer = "Factura generada electrónicamente por MuyFactu. Registro interno con trazabilidad técnica; envío automático a AEAT no implementado en este prototipo."
   const disclaimerLines = doc.splitTextToSize(disclaimer, contentWidth - 32)
-  doc.text(disclaimerLines, margin, footerY + 5)
+  doc.text(disclaimerLines, margin, footerY + (data.hash_anterior ? 13 : 10))
 
   // MuyFactu branding (izquierda)
   doc.setFontSize(9)

@@ -297,6 +297,25 @@ export default function FacturacionPage() {
     else { toast.success("Factura marcada como cobrada"); loadData() }
   }
 
+
+  async function openFacturaPdf(pdfPath: string | null) {
+    if (!pdfPath) {
+      toast.error("PDF no disponible")
+      return
+    }
+
+    const { data, error } = await supabase.storage
+      .from("facturas")
+      .createSignedUrl(pdfPath, 60 * 5)
+
+    if (error || !data?.signedUrl) {
+      toast.error("No se ha podido abrir el PDF")
+      return
+    }
+
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer")
+  }
+
   async function handleVerFactura(factura: Factura) {
     setFacturaOpen(true)
     setLoadingLineas(true)
@@ -512,10 +531,8 @@ export default function FacturacionPage() {
                               <Eye className="h-4 w-4" />
                             </Button>
                             {f.pdf_url && (
-                              <Button variant="ghost" size="sm" asChild>
-                                <a href={supabase.storage.from("facturas").getPublicUrl(f.pdf_url).data.publicUrl} target="_blank" rel="noreferrer">
-                                  <Download className="h-4 w-4" />
-                                </a>
+                              <Button variant="ghost" size="sm" onClick={() => openFacturaPdf(f.pdf_url)}>
+                                <Download className="h-4 w-4" />
                               </Button>
                             )}
                             {f.estado === "pendiente" && (
@@ -695,8 +712,20 @@ export default function FacturacionPage() {
               </div>
               {selectedFactura.qr_data && (
                 <div className="rounded-lg border bg-muted/30 p-4">
-                  <p className="mb-2 text-xs font-medium text-muted-foreground">✓ Factura con Verifactu</p>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">✓ Registro técnico de factura</p>
                   <p className="font-mono text-xs text-muted-foreground break-all">{selectedFactura.qr_data}</p>
+                  {selectedFactura.hash_sha256 && (
+                    <div className="mt-3 border-t pt-3">
+                      <p className="text-xs font-medium text-muted-foreground">Hash SHA-256</p>
+                      <p className="font-mono text-xs break-all">{selectedFactura.hash_sha256}</p>
+                    </div>
+                  )}
+                  {selectedFactura.hash_anterior && (
+                    <div className="mt-3">
+                      <p className="text-xs font-medium text-muted-foreground">Hash anterior</p>
+                      <p className="font-mono text-xs break-all">{selectedFactura.hash_anterior}</p>
+                    </div>
+                  )}
                 </div>
               )}
               {selectedFactura.observaciones && (
@@ -713,10 +742,8 @@ export default function FacturacionPage() {
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => setFacturaOpen(false)}>Cerrar</Button>
                   {selectedFactura.pdf_url ? (
-                    <Button asChild>
-                      <a href={supabase.storage.from("facturas").getPublicUrl(selectedFactura.pdf_url).data.publicUrl} target="_blank" rel="noreferrer">
-                        <Download className="mr-2 h-4 w-4" /> Descargar PDF
-                      </a>
+                    <Button onClick={() => openFacturaPdf(selectedFactura.pdf_url)}>
+                      <Download className="mr-2 h-4 w-4" /> Descargar PDF
                     </Button>
                   ) : (
                     <Button variant="outline" disabled><Download className="mr-2 h-4 w-4" /> PDF no disponible</Button>

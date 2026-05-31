@@ -29,10 +29,56 @@ interface LineaForm {
   iva: number
 }
 
+interface FacturaHashData {
+  version: string
+  tipo_registro: "ALTA"
+  asesoria_nif: string
+  cliente_nif: string
+  numero_factura: string
+  serie: string
+  numero: number
+  fecha_emision: string
+  fecha_vencimiento: string
+  base_imponible: string
+  iva_total: string
+  retencion_irpf: string
+  total: string
+  hash_anterior: string | null
+  lineas: Array<{
+    orden: number
+    concepto: string
+    cantidad: string
+    precio_unitario: string
+    porcentaje_iva: string
+    importe_linea: string
+  }>
+}
+
+const toMoneyString = (value: number) => Number(value || 0).toFixed(2)
+
+function canonicalize(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`
+
+  return `{${Object.keys(value as Record<string, unknown>)
+    .sort()
+    .map(key => `${JSON.stringify(key)}:${canonicalize((value as Record<string, unknown>)[key])}`)
+    .join(",")}}`
+}
+
+async function sha256Hex(data: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(data))
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(byte => byte.toString(16).padStart(2, "0"))
+    .join("")
+    .toUpperCase()
+}
+
 export default function GenerarFacturaPage() {
   const params = useParams()
   const router = useRouter()
-  const { asesoria, user } = useAuth()
+  const { asesoria } = useAuth()
   const supabase = createClient()
   const solicitudId = params.id as string
 
@@ -84,22 +130,31 @@ export default function GenerarFacturaPage() {
         setFechaVencimiento(venc.toISOString().split("T")[0])
       }
 
-      // Get next invoice number
-      const { data: lastFactura } = await supabase
-        .from("facturas")
-        .select("numero")
-        .eq("asesoria_id", asesoria.id)
-        .eq("serie", "A")
-        .order("numero", { ascending: false })
-        .limit(1)
-        .single()
-
-      if (lastFactura) setNumero(lastFactura.numero + 1)
       setLoading(false)
     }
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asesoria, solicitudId])
+
+  useEffect(() => {
+    async function loadNextInvoiceNumber() {
+      if (!asesoria) return
+
+      const { data: lastFactura } = await supabase
+        .from("facturas")
+        .select("numero")
+        .eq("asesoria_id", asesoria.id)
+        .eq("serie", serie)
+        .order("numero", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      setNumero((lastFactura?.numero || 0) + 1)
+    }
+
+    loadNextInvoiceNumber()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asesoria, serie])
 
   function addLinea() {
     setLineas(prev => [...prev, { concepto: "", cantidad: 1, precio: 0, iva: 21 }])
@@ -131,10 +186,18 @@ export default function GenerarFacturaPage() {
     setGenerating(true)
   
     try {
+      if (!solicitud) throw new Error("No se ha encontrado la solicitud")
+      if (solicitud.estado === "facturada" || solicitud.factura_id) {
+        throw new Error("Esta solicitud ya tiene una factura asociada")
+      }
+      if (solicitud.estado !== "aprobada") {
+        throw new Error("Solo se pueden facturar solicitudes aprobadas")
+      }
+
       const numeroFactura = `${serie}-${String(numero).padStart(4, "0")}`
-      const hashValue = generateHash()
   
-      // 1. Create factura record
+      // 1. Crear la factura sin hash todavía. Primero se guardan las líneas y, después,
+      // se calcula el registro SHA-256 con todos los datos definitivos.
       const { data: factura, error: facturaError } = await supabase
         .from("facturas")
         .insert({
@@ -151,19 +214,17 @@ export default function GenerarFacturaPage() {
           retencion_irpf: irpfTotal,
           total,
           observaciones,
-          hash_sha256: hashValue,
-          qr_data: `NIF=${asesoria.nif}&NUM=${numeroFactura}&FECHA=${fechaEmision}&IMPORTE=${total.toFixed(2)}&HASH=${hashValue.substring(0, 16)}`,
         })
         .select()
         .single()
   
       if (facturaError) throw facturaError
   
-      // 2. Insert lineas
+      // 2. Insertar líneas
       const lineasInsert = lineas.map((l, index) => ({
         factura_id: factura.id,
         orden: index + 1,
-        concepto: l.concepto,
+        concepto: l.concepto.trim(),
         cantidad: l.cantidad,
         precio_unitario: l.precio,
         porcentaje_iva: l.iva,
@@ -172,8 +233,61 @@ export default function GenerarFacturaPage() {
   
       const { error: lineasError } = await supabase.from("lineas_factura").insert(lineasInsert)
       if (lineasError) throw lineasError
+
+      // 3. Calcular hash SHA-256 encadenado con la última factura de la misma asesoría y serie
+      const { data: previousFacturas } = await supabase
+        .from("facturas")
+        .select("hash_sha256, numero_factura, numero")
+        .eq("asesoria_id", asesoria.id)
+        .eq("serie", serie)
+        .not("hash_sha256", "is", null)
+        .neq("id", factura.id)
+        .order("numero", { ascending: false })
+        .limit(1)
+
+      const hashAnterior = previousFacturas?.[0]?.hash_sha256 || null
+      const hashData: FacturaHashData = {
+        version: "MF-SIF-1",
+        tipo_registro: "ALTA",
+        asesoria_nif: asesoria.nif,
+        cliente_nif: cliente.nif,
+        numero_factura: numeroFactura,
+        serie,
+        numero,
+        fecha_emision: fechaEmision,
+        fecha_vencimiento: fechaVencimiento,
+        base_imponible: toMoneyString(baseImponible),
+        iva_total: toMoneyString(totalIva),
+        retencion_irpf: toMoneyString(irpfTotal),
+        total: toMoneyString(total),
+        hash_anterior: hashAnterior,
+        lineas: lineasInsert.map(l => ({
+          orden: l.orden,
+          concepto: l.concepto,
+          cantidad: toMoneyString(l.cantidad),
+          precio_unitario: toMoneyString(l.precio_unitario),
+          porcentaje_iva: toMoneyString(l.porcentaje_iva),
+          importe_linea: toMoneyString(l.importe_linea),
+        })),
+      }
+      const datosHash = canonicalize(hashData)
+      const hashValue = await sha256Hex(datosHash)
+      const qrData = `NIF=${encodeURIComponent(asesoria.nif)}&NUM=${encodeURIComponent(numeroFactura)}&FECHA=${fechaEmision}&IMPORTE=${total.toFixed(2)}&HASH=${hashValue.substring(0, 16)}`
+
+      const { error: hashUpdateError } = await supabase
+        .from("facturas")
+        .update({
+          hash_sha256: hashValue,
+          hash_anterior: hashAnterior,
+          datos_hash: hashData,
+          fecha_registro: new Date().toISOString(),
+          qr_data: qrData,
+        })
+        .eq("id", factura.id)
+
+      if (hashUpdateError) throw hashUpdateError
   
-      // 3. Generar PDF
+      // 4. Generar PDF
       toast.info("Generando PDF...")
 
       if (!asesoria || !cliente) throw new Error("Datos incompletos")
@@ -182,7 +296,9 @@ export default function GenerarFacturaPage() {
         numero_factura: numeroFactura,
         fecha_emision: fechaEmision,
         fecha_vencimiento: fechaVencimiento,
-        qr_data: factura.qr_data,
+        qr_data: qrData,
+        hash_sha256: hashValue,
+        hash_anterior: hashAnterior,
         observaciones: observaciones || null,
         base_imponible: baseImponible,
         iva_total: totalIva,
@@ -220,7 +336,7 @@ export default function GenerarFacturaPage() {
 
       const pdfBlob = await generateFacturaPDF(pdfData)
       
-      // 4. Subir PDF a Storage
+      // 5. Subir PDF a Storage
       const pdfPath = `${asesoria.id}/${factura.id}/${numeroFactura}.pdf`
       const { error: uploadError } = await supabase.storage
         .from("facturas")
@@ -231,7 +347,7 @@ export default function GenerarFacturaPage() {
   
       if (uploadError) throw uploadError
   
-      // 5. Actualizar factura con URL del PDF
+      // 6. Actualizar factura con URL del PDF
       const { error: updateError } = await supabase
         .from("facturas")
         .update({ pdf_url: pdfPath })
@@ -239,31 +355,37 @@ export default function GenerarFacturaPage() {
   
       if (updateError) throw updateError
 
-      // 6. Enviar email al cliente con PDF adjunto
+      // 7. Enviar email al cliente con PDF adjunto
+      // El bucket de facturas puede ser privado; por eso se usa una URL firmada temporal
+      // para que la server action pueda descargar el PDF y adjuntarlo al email.
       if (cliente.email && cliente.user_id) {
-        const pdfPublicUrl = supabase.storage
+        const { data: signedData, error: signedError } = await supabase.storage
           .from("facturas")
-          .getPublicUrl(pdfPath).data.publicUrl
+          .createSignedUrl(pdfPath, 60 * 60)
 
-        enviarEmailFactura({
-          nombreCliente: cliente.nombre,
-          nombreAsesoria: asesoria.nombre,
-          emailCliente: cliente.email,
-          numeroFactura,
-          total,
-          fechaEmision,
-          fechaVencimiento,
-          pdfUrl: pdfPublicUrl,
-        }).catch(err => console.error("Error enviando email factura:", err))
+        if (signedError || !signedData?.signedUrl) {
+          console.error("No se pudo crear URL firmada para el email de factura:", signedError)
+        } else {
+          enviarEmailFactura({
+            nombreCliente: cliente.nombre,
+            nombreAsesoria: asesoria.nombre,
+            emailCliente: cliente.email,
+            numeroFactura,
+            total,
+            fechaEmision,
+            fechaVencimiento,
+            pdfUrl: signedData.signedUrl,
+          }).catch(err => console.error("Error enviando email factura:", err))
+        }
       }
   
-      // 6. Update solicitud
+      // 8. Update solicitud
       await supabase.from("solicitudes_factura").update({
         estado: "facturada",
         factura_id: factura.id,
       }).eq("id", solicitudId)
   
-      // 7. Notify cliente
+      // 9. Notify cliente
       if (cliente.user_id) {
         await notificarClienteAction({
           cliente_user_id: cliente.user_id,
@@ -284,17 +406,6 @@ export default function GenerarFacturaPage() {
     }
   }
 
-  function generateHash(): string {
-    // Simple hash for demo - in production use crypto-js SHA-256
-    const data = `${asesoria?.nif}|${serie}|${numero}|${fechaEmision}|${total.toFixed(2)}`
-    let hash = 0
-    for (let i = 0; i < data.length; i++) {
-      const char = data.charCodeAt(i)
-      hash = ((hash << 5) - hash) + char
-      hash = hash & hash
-    }
-    return Math.abs(hash).toString(16).padStart(16, "0").toUpperCase()
-  }
 
   function handleVistaPrevia() {
     if (lineas.length === 0) {
