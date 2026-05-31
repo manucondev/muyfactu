@@ -50,6 +50,16 @@ const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(amount)
 }
 
+const resolveLogoUrl = (logoUrl: string | null): string | null => {
+  if (!logoUrl) return null
+  if (/^https?:\/\//i.test(logoUrl)) return logoUrl
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!supabaseUrl) return logoUrl
+
+  return `${supabaseUrl}/storage/v1/object/public/logos/${logoUrl.replace(/^\/+/, "")}`
+}
+
 export async function generateFacturaPDF(data: FacturaData): Promise<Blob> {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -75,10 +85,10 @@ export async function generateFacturaPDF(data: FacturaData): Promise<Blob> {
   // ==================== HEADER ====================
 
   // Intentar cargar logo real
-  if (data.asesoria.logo_url) {
+  const logoUrl = resolveLogoUrl(data.asesoria.logo_url)
+  if (logoUrl) {
     try {
-      const logoUrl = `https://vxzcrdgihksmvvwibsqq.supabase.co/storage/v1/object/public/logos/${data.asesoria.logo_url}`
-      doc.addImage(logoUrl, 'PNG', margin, yPos, 16, 16)
+      doc.addImage(logoUrl, "PNG", margin, yPos, 16, 16)
     } catch {
       // Si falla, usar placeholder existente
     }

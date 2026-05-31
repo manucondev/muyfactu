@@ -10,10 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { FileText, Loader2, ArrowLeft, Plus } from "lucide-react"
+import { FileText, Loader2, ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
-import type { Asesoria } from "@/lib/types"
 
 export default function RegisterClientePage() {
   const [form, setForm] = useState({
@@ -22,17 +20,15 @@ export default function RegisterClientePage() {
     telefono: "", direccion: "", cp: "", ciudad: "", dias_pago: "30",
     banco: "", iban: "", bic_swift: "",  // ✅ NUEVO
   })
-  const [asesorias, setAsesorias] = useState<Asesoria[]>([])
+  const [asesorias, setAsesorias] = useState<Array<{ id: string; nombre: string; nif: string }>>([])
   const [selectedAsesoriaId, setSelectedAsesoriaId] = useState("")
-  const [showNewAsesoria, setShowNewAsesoria] = useState(false)
-  const [newAsesoria, setNewAsesoria] = useState({ nombre: "", nif: "" })
   const [loading, setLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
     async function loadAsesorias() {
-      const { data } = await supabase.from("asesorias").select("*").order("nombre")
+      const { data } = await supabase.from("asesorias").select("id, nombre, nif").eq("estado", "activo").order("nombre")
       if (data) setAsesorias(data)
     }
     loadAsesorias()
@@ -41,19 +37,6 @@ export default function RegisterClientePage() {
 
   function updateField(key: string, value: string) {
     setForm(prev => ({ ...prev, [key]: value }))
-  }
-
-  async function createNewAsesoria(): Promise<string | null> {
-    const { data, error } = await supabase
-      .from("asesorias")
-      .insert({ nombre: newAsesoria.nombre, nif: newAsesoria.nif, email: "" })
-      .select()
-      .single()
-    if (error) { toast.error("Error al crear asesoria: " + error.message); return null }
-    setAsesorias(prev => [...prev, data])
-    setSelectedAsesoriaId(data.id)
-    setShowNewAsesoria(false)
-    return data.id
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -178,39 +161,19 @@ export default function RegisterClientePage() {
 
             <div className="flex flex-col gap-2">
               <Label>Asesoria *</Label>
-              <div className="flex items-center gap-2">
-                <Select value={selectedAsesoriaId} onValueChange={setSelectedAsesoriaId}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Seleccionar asesoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {asesorias.map(a => (
-                      <SelectItem key={a.id} value={a.id}>{a.nombre} ({a.nif})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Dialog open={showNewAsesoria} onOpenChange={setShowNewAsesoria}>
-                  <DialogTrigger asChild>
-                    <Button type="button" variant="outline" size="icon"><Plus className="h-4 w-4" /></Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Crear Nueva Asesoria</DialogTitle>
-                    </DialogHeader>
-                    <div className="flex flex-col gap-4">
-                      <div className="flex flex-col gap-2">
-                        <Label>Nombre Asesoria</Label>
-                        <Input value={newAsesoria.nombre} onChange={e => setNewAsesoria(p => ({ ...p, nombre: e.target.value }))} />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Label>NIF Asesoria</Label>
-                        <Input value={newAsesoria.nif} onChange={e => setNewAsesoria(p => ({ ...p, nif: e.target.value }))} />
-                      </div>
-                      <Button onClick={createNewAsesoria}>Crear Asesoria</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
+              <Select value={selectedAsesoriaId} onValueChange={setSelectedAsesoriaId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar asesoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  {asesorias.map(a => (
+                    <SelectItem key={a.id} value={a.id}>{a.nombre} ({a.nif})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Si tu asesoría no aparece, pídele que cree primero su cuenta en MuyFactu.
+              </p>
             </div>
 
             <div className="flex flex-col gap-2">

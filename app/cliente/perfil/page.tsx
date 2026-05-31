@@ -132,6 +132,12 @@ export default function PerfilPage() {
 
   const strength = getStrength(newPass)
 
+
+  function getLogoUrl(logoUrl: string) {
+    if (/^https?:\/\//i.test(logoUrl)) return logoUrl
+    return supabase.storage.from("logos").getPublicUrl(logoUrl).data.publicUrl
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background p-6">
@@ -249,7 +255,7 @@ export default function PerfilPage() {
                 <div className="flex items-center gap-4">
                   {asesoria.logo_url ? (
                     <img
-                      src={supabase.storage.from("logos").getPublicUrl(asesoria.logo_url).data.publicUrl}
+                      src={getLogoUrl(asesoria.logo_url)}
                       alt={`Logo ${asesoria.nombre}`}
                       className="h-12 w-12 rounded-lg object-cover"
                       onError={(e) => { e.currentTarget.style.display = 'none' }}

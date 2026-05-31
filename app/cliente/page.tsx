@@ -18,6 +18,7 @@ export default function ClienteDashboard() {
   const { cliente } = useAuth()
   const [solicitudes, setSolicitudes] = useState<SolicitudFactura[]>([])
   const [facturas, setFacturas] = useState<Factura[]>([])
+  const [facturasMes, setFacturasMes] = useState(0)
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const [selectedFactura, setSelectedFactura] = useState<Factura | null>(null)
@@ -45,13 +46,14 @@ export default function ClienteDashboard() {
           .limit(5),
         supabase
           .from("facturas")
-          .select("*, clientes(nombre, nif, email, telefono, direccion, cp, ciudad, banco, iban, bic_swift)")
+          .select("id", { count: "exact", head: true })
           .eq("cliente_id", cliente!.id)
           .gte("fecha_emision", firstDay),
       ])
 
       if (solRes.data) setSolicitudes(solRes.data)
       if (facRes.data) setFacturas(facRes.data)
+      setFacturasMes(facMesRes.count ?? 0)
       setLoading(false)
     }
     load()
@@ -89,7 +91,7 @@ export default function ClienteDashboard() {
   }
 
   const pendientes = solicitudes.filter(s => s.estado === "pendiente").length
-  const facMes = facturas.length
+  const facMes = facturasMes
   const pendientePago = facturas.filter(f => f.estado === "pendiente").reduce((s, f) => s + f.total, 0)
 
   return (

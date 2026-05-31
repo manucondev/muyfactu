@@ -1,6 +1,7 @@
 "use server"
 
 import { supabaseAdmin } from "@/lib/supabase/admin"
+import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { enviarEmailBienvenida } from "@/app/actions/emails"
 
@@ -81,6 +82,24 @@ export async function registerCliente(formData: {
   asesoria_nombre?: string  // ✅ AÑADIR
 }) {
   try {
+    const supabase = await createClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      throw new Error("Debes iniciar sesión como asesoría para crear clientes")
+    }
+
+    const { data: usuarioAsesoria, error: permisoError } = await supabase
+      .from("usuarios_asesoria")
+      .select("asesoria_id")
+      .eq("user_id", user.id)
+      .eq("asesoria_id", formData.asesoria_id)
+      .single()
+
+    if (permisoError || !usuarioAsesoria) {
+      throw new Error("No tienes permiso para crear clientes en esta asesoría")
+    }
+
     // 0. VALIDAR PRIMERO si ya existe el NIF o el email
     const { data: existingCliente } = await supabaseAdmin
       .from("clientes")

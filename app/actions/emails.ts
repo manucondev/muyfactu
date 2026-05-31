@@ -13,7 +13,7 @@ export async function enviarEmailBienvenida(params: {
   password: string
 }) {
   try {
-    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/login`
+    const loginUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
     const { html, text } = emailBienvenidaCliente({ ...params, loginUrl })
 
     const { error } = await resend.emails.send({
