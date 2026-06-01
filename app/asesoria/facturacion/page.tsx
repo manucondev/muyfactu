@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
-import { EstadoBadge } from "@/components/estado-badge"
+import { EstadoBadge, getEstadoLabel } from "@/components/estado-badge"
 import { EmptyState } from "@/components/empty-state"
 import { formatCurrency, formatDate, calcImporte } from "@/lib/format"
 import { FileText, Receipt, Eye, Download, CheckCircle, Loader2, Search, X, FileSpreadsheet } from "lucide-react"
@@ -292,9 +292,26 @@ export default function FacturacionPage() {
   }
 
   async function handleMarcarCobrada(factura: Factura) {
-    const { error } = await supabase.from("facturas").update({ estado: "cobrada", fecha_cobro: new Date().toISOString().split("T")[0] }).eq("id", factura.id)
-    if (error) toast.error(error.message)
-    else { toast.success("Factura marcada como cobrada"); loadData() }
+    const confirmar = window.confirm(
+      `¿Marcar la factura ${factura.numero_factura} como cobrada?
+
+Esta acción registrará la fecha de cobro. No modificará los datos fiscales ni el registro de trazabilidad.`
+    )
+    if (!confirmar) return false
+
+    const { error } = await supabase
+      .from("facturas")
+      .update({ estado: "cobrada", fecha_cobro: new Date().toISOString().split("T")[0] })
+      .eq("id", factura.id)
+
+    if (error) {
+      toast.error(error.message)
+      return false
+    }
+
+    toast.success("Factura marcada como cobrada")
+    loadData()
+    return true
   }
 
 
@@ -367,16 +384,16 @@ export default function FacturacionPage() {
 
       <Tabs defaultValue="solicitudes">
         <TabsList>
-          <TabsTrigger value="solicitudes">Solicitudes Pendientes</TabsTrigger>
+          <TabsTrigger value="solicitudes">Solicitudes</TabsTrigger>
           <TabsTrigger value="facturas">Facturas Emitidas</TabsTrigger>
         </TabsList>
 
         {/* SOLICITUDES TAB */}
         <TabsContent value="solicitudes" className="flex flex-col gap-4 pt-4">
           <div className="flex gap-2">
-            {["todas", "pendiente", "aprobada", "rechazada"].map(e => (
-              <Button key={e} variant={filterEstado === e ? "default" : "outline"} size="sm" onClick={() => setFilterEstado(e)} className="capitalize">
-                {e}
+            {["todas", "pendiente", "aprobada", "rechazada", "facturada"].map(e => (
+              <Button key={e} variant={filterEstado === e ? "default" : "outline"} size="sm" onClick={() => setFilterEstado(e)}>
+                {e === "todas" ? "Todas" : getEstadoLabel(e, "solicitud")}
               </Button>
             ))}
           </div>
@@ -403,7 +420,7 @@ export default function FacturacionPage() {
                         <TableCell>{formatDate(s.created_at)}</TableCell>
                         <TableCell>{s.conceptos.length} conceptos</TableCell>
                         <TableCell className="text-right">{formatCurrency(calcImporte(s.conceptos))}</TableCell>
-                        <TableCell><EstadoBadge estado={s.estado} /></TableCell>
+                        <TableCell><EstadoBadge estado={s.estado} tipo="solicitud" /></TableCell>
                         <TableCell>
                           <Button variant="ghost" size="sm" onClick={() => { setReviewSolicitud(s); setReviewOpen(true) }}>
                             <Eye className="mr-1 h-4 w-4" /> Revisar
@@ -453,7 +470,7 @@ export default function FacturacionPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="todas">Todos los estados</SelectItem>
-                      <SelectItem value="pendiente">Pendiente</SelectItem>
+                      <SelectItem value="pendiente">Pendiente de cobro</SelectItem>
                       <SelectItem value="cobrada">Cobrada</SelectItem>
                       <SelectItem value="vencida">Vencida</SelectItem>
                     </SelectContent>
@@ -509,7 +526,7 @@ export default function FacturacionPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Total Facturado</p><p className="text-xl font-bold text-foreground">{formatCurrency(totalFacturado)}</p></CardContent></Card>
             <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Cobrado</p><p className="text-xl font-bold text-emerald-600">{formatCurrency(totalCobrado)}</p></CardContent></Card>
-            <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Pendiente</p><p className="text-xl font-bold text-amber-600">{formatCurrency(totalPendiente)}</p></CardContent></Card>
+            <Card><CardContent className="p-4"><p className="text-sm text-muted-foreground">Pendiente de cobro</p><p className="text-xl font-bold text-amber-600">{formatCurrency(totalPendiente)}</p></CardContent></Card>
           </div>
 
           <Card>
@@ -537,7 +554,7 @@ export default function FacturacionPage() {
                         <TableCell className="font-medium">{(f as any).clientes?.nombre || "—"}</TableCell>
                         <TableCell>{formatDate(f.fecha_emision)}</TableCell>
                         <TableCell className="text-right font-semibold">{formatCurrency(f.total)}</TableCell>
-                        <TableCell><EstadoBadge estado={f.estado} /></TableCell>
+                        <TableCell><EstadoBadge estado={f.estado} tipo="factura" /></TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button variant="ghost" size="sm" onClick={() => handleVerFactura(f)}>
@@ -549,8 +566,9 @@ export default function FacturacionPage() {
                               </Button>
                             )}
                             {f.estado === "pendiente" && (
-                              <Button variant="ghost" size="sm" onClick={() => handleMarcarCobrada(f)}>
-                                <CheckCircle className="h-4 w-4" />
+                              <Button variant="outline" size="sm" onClick={() => handleMarcarCobrada(f)}>
+                                <CheckCircle className="mr-1 h-3.5 w-3.5" />
+                                Marcar como cobrada
                               </Button>
                             )}
                           </div>
@@ -576,7 +594,7 @@ export default function FacturacionPage() {
                   <p className="font-medium">{(reviewSolicitud as any).clientes?.nombre}</p>
                   <p className="text-sm text-muted-foreground">NIF: {(reviewSolicitud as any).clientes?.nif}</p>
                 </div>
-                <EstadoBadge estado={reviewSolicitud.estado} />
+                <EstadoBadge estado={reviewSolicitud.estado} tipo="solicitud" />
               </div>
               <Table>
                 <TableHeader>
@@ -676,7 +694,7 @@ export default function FacturacionPage() {
             <div className="space-y-6">
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 p-4">
-                  <EstadoBadge estado={selectedFactura.estado} />
+                  <EstadoBadge estado={selectedFactura.estado} tipo="factura" />
                   <div className="text-sm"><span className="text-muted-foreground">Emitida:</span>{" "}<span className="font-medium">{formatDate(selectedFactura.fecha_emision)}</span></div>
                   <div className="text-sm"><span className="text-muted-foreground">Vencimiento:</span>{" "}<span className="font-medium">{formatDate(selectedFactura.fecha_vencimiento)}</span></div>
                 </div>
@@ -760,8 +778,14 @@ export default function FacturacionPage() {
               <div className="flex justify-between gap-2">
                 <div className="flex gap-2">
                   {selectedFactura.estado === "pendiente" && (
-                    <Button variant="outline" onClick={() => { handleMarcarCobrada(selectedFactura); setFacturaOpen(false) }}>
-                      <CheckCircle className="mr-2 h-4 w-4" /> Marcar como Cobrada
+                    <Button
+                      variant="outline"
+                      onClick={async () => {
+                        const marcada = await handleMarcarCobrada(selectedFactura)
+                        if (marcada) setFacturaOpen(false)
+                      }}
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" /> Marcar como cobrada
                     </Button>
                   )}
                 </div>

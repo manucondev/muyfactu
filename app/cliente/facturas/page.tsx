@@ -260,7 +260,7 @@ export default function FacturasClientePage() {
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todas">Todos los estados</SelectItem>
-                  <SelectItem value="pendiente">Pendientes</SelectItem>
+                  <SelectItem value="pendiente">Pendientes de cobro</SelectItem>
                   <SelectItem value="cobrada">Cobradas</SelectItem>
                   <SelectItem value="vencida">Vencidas</SelectItem>
                 </SelectContent>
@@ -322,7 +322,7 @@ export default function FacturasClientePage() {
                       <td className="px-6 py-4 font-mono font-medium">{f.numero_factura}</td>
                       <td className="px-6 py-4">{formatDate(f.fecha_emision)}</td>
                       <td className="px-6 py-4 font-semibold">{formatCurrency(f.total)}</td>
-                      <td className="px-6 py-4"><EstadoBadge estado={f.estado} /></td>
+                      <td className="px-6 py-4"><EstadoBadge estado={f.estado} tipo="factura" /></td>
                       <td className="px-6 py-4">
                         <div className="flex gap-1">
                           <Button variant="ghost" size="sm" onClick={() => handleVerFactura(f)}>
@@ -349,7 +349,7 @@ export default function FacturasClientePage() {
           {selected && (
             <div className="space-y-6">
               <div className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 p-4">
-                <EstadoBadge estado={selected.estado} />
+                <EstadoBadge estado={selected.estado} tipo="factura" />
                 <div className="text-sm"><span className="text-muted-foreground">Emitida:</span>{" "}<span className="font-medium">{formatDate(selected.fecha_emision)}</span></div>
                 <div className="text-sm"><span className="text-muted-foreground">Vencimiento:</span>{" "}<span className="font-medium">{formatDate(selected.fecha_vencimiento)}</span></div>
               </div>

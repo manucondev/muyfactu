@@ -72,7 +72,6 @@ async function sha256Hex(data: string): Promise<string> {
   return Array.from(new Uint8Array(hashBuffer))
     .map(byte => byte.toString(16).padStart(2, "0"))
     .join("")
-    .toUpperCase()
 }
 
 export default function GenerarFacturaPage() {
@@ -180,6 +179,23 @@ export default function GenerarFacturaPage() {
   const irpfTotal = aplicarIrpf ? baseImponible * (irpfPorcentaje / 100) : 0
   const total = baseImponible + totalIva - irpfTotal
 
+  async function getNextInvoiceNumber(currentSerie: string): Promise<number> {
+    if (!asesoria) return 1
+
+    const { data: lastFactura, error } = await supabase
+      .from("facturas")
+      .select("numero")
+      .eq("asesoria_id", asesoria.id)
+      .eq("serie", currentSerie)
+      .order("numero", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) throw error
+
+    return (lastFactura?.numero || 0) + 1
+  }
+
   async function handleGenerar() {
     if (lineas.length === 0) { toast.error("Añade al menos una línea"); return }
     if (!asesoria || !cliente) return
@@ -194,7 +210,35 @@ export default function GenerarFacturaPage() {
         throw new Error("Solo se pueden facturar solicitudes aprobadas")
       }
 
-      const numeroFactura = `${serie}-${String(numero).padStart(4, "0")}`
+      // Evita duplicados si un intento anterior creó la factura pero falló antes de actualizar la solicitud.
+      const { data: facturaExistente, error: facturaExistenteError } = await supabase
+        .from("facturas")
+        .select("id, numero_factura, pdf_url")
+        .eq("solicitud_id", solicitudId)
+        .maybeSingle()
+
+      if (facturaExistenteError) throw facturaExistenteError
+      if (facturaExistente) {
+        if (facturaExistente.pdf_url) {
+          await supabase
+            .from("solicitudes_factura")
+            .update({ estado: "facturada", factura_id: facturaExistente.id })
+            .eq("id", solicitudId)
+          toast.info(`Esta solicitud ya tenía generada la factura ${facturaExistente.numero_factura}.`)
+          router.push("/asesoria/facturacion")
+          return
+        }
+
+        throw new Error(
+          `Ya existe una factura incompleta para esta solicitud (${facturaExistente.numero_factura}). Revisa la tabla de facturas o elimínala antes de volver a generar.`
+        )
+      }
+
+      // Calcular el número justo antes de insertar, no solo al cargar la pantalla.
+      // Así evitamos duplicados si ya se ha creado otra factura mientras la página estaba abierta.
+      const nextNumero = await getNextInvoiceNumber(serie)
+      setNumero(nextNumero)
+      const numeroFactura = `${serie}-${String(nextNumero).padStart(4, "0")}`
   
       // 1. Crear la factura sin hash todavía. Primero se guardan las líneas y, después,
       // se calcula el registro SHA-256 con todos los datos definitivos.
@@ -206,7 +250,7 @@ export default function GenerarFacturaPage() {
           solicitud_id: solicitudId,
           numero_factura: numeroFactura,
           serie,
-          numero,
+          numero: nextNumero,
           fecha_emision: fechaEmision,
           fecha_vencimiento: fechaVencimiento,
           base_imponible: baseImponible,
@@ -253,7 +297,7 @@ export default function GenerarFacturaPage() {
         cliente_nif: cliente.nif,
         numero_factura: numeroFactura,
         serie,
-        numero,
+        numero: nextNumero,
         fecha_emision: fechaEmision,
         fecha_vencimiento: fechaVencimiento,
         base_imponible: toMoneyString(baseImponible),

@@ -7,19 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { formatCurrency, formatDate } from "@/lib/format"
 import Link from "next/link"
 import { ArrowUpRight, TrendingUp } from "lucide-react"
-
-function getInitials(name: string): string {
-  return name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()
-}
-
-function stringToColor(str: string): string {
-  const colors = ["bg-blue-500", "bg-purple-500", "bg-pink-500", "bg-orange-500", "bg-teal-500", "bg-indigo-500"]
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  return colors[Math.abs(hash) % colors.length]
-}
+import { ClientAvatar } from "@/components/client-avatar"
 
 export default function AsesoriaHomePage() {
   const { asesoria } = useAuth()
@@ -229,7 +217,7 @@ export default function AsesoriaHomePage() {
                 {formatCurrency(stats.pendienteCobro)}
               </p>
               <p className="mt-2 text-xs text-muted-foreground">
-                Pendiente de gestión
+                Pendiente de cobro
               </p>
             </div>
 
@@ -244,7 +232,7 @@ export default function AsesoriaHomePage() {
 
               <Link href="/asesoria/facturacion">
                 <div className="rounded-lg border border-border/50 bg-card p-4 transition-all hover:border-border hover:shadow-sm">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Solicitudes pendientes</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Solicitudes pendientes de revisión</p>
                   <p className="mt-1 text-xl font-semibold tabular-nums">{stats.solicitudesPendientes}</p>
                 </div>
               </Link>
@@ -300,9 +288,7 @@ export default function AsesoriaHomePage() {
                       <tr key={f.id} className="border-b border-border/30 transition-colors hover:bg-muted/40">
                         <td className="px-6 py-3">
                           <div className="flex items-center gap-3">
-                            <div className={`avatar-circle h-8 w-8 ${stringToColor(clienteNombre)}`}>
-                              {getInitials(clienteNombre)}
-                            </div>
+                            <ClientAvatar name={clienteNombre} className="h-8 w-8" />
                             <span className="font-medium">{clienteNombre}</span>
                           </div>
                         </td>
@@ -323,7 +309,7 @@ export default function AsesoriaHomePage() {
                               ? "bg-amber-50 text-amber-700"
                               : "bg-red-50 text-red-700"
                           }`}>
-                            {f.estado}
+                            {f.estado === "pendiente" ? "Pendiente de cobro" : f.estado === "cobrada" ? "Cobrada" : f.estado}
                           </span>
                         </td>
                       </tr>

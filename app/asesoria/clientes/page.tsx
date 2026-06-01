@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { EstadoBadge } from "@/components/estado-badge"
 import { EmptyState } from "@/components/empty-state"
+import { ClientAvatar } from "@/components/client-avatar"
 import { formatDate, formatCurrency, calcImporte } from "@/lib/format"
 import { Plus, Search, Users, Eye, Pencil, Loader2 } from "lucide-react"
 import { toast } from "sonner"
@@ -191,7 +192,12 @@ export default function ClientesPage() {
                 <TableBody>
                   {filtered.map(c => (
                     <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.nombre}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <ClientAvatar name={c.nombre} className="h-8 w-8" />
+                          <span className="font-medium">{c.nombre}</span>
+                        </div>
+                      </TableCell>
                       <TableCell className="font-mono text-sm">{c.nif}</TableCell>
                       <TableCell>{c.email}</TableCell>
                       <TableCell><EstadoBadge estado={c.tipo} /></TableCell>
@@ -382,7 +388,7 @@ function ClienteDetailModal({
                     <TableRow key={s.id}>
                       <TableCell>{formatDate(s.created_at)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(calcImporte(s.conceptos))}</TableCell>
-                      <TableCell><EstadoBadge estado={s.estado} /></TableCell>
+                      <TableCell><EstadoBadge estado={s.estado} tipo="solicitud" /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -409,7 +415,7 @@ function ClienteDetailModal({
                       <TableCell className="font-mono">{f.serie}-{String(f.numero).padStart(4, "0")}</TableCell>
                       <TableCell>{formatDate(f.fecha_emision)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(f.total)}</TableCell>
-                      <TableCell><EstadoBadge estado={f.estado} /></TableCell>
+                      <TableCell><EstadoBadge estado={f.estado} tipo="factura" /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -121,7 +121,7 @@ export default function ClienteDashboard() {
                 <FileStack className="h-6 w-6 text-amber-700" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Solicitudes Pendientes</p>
+                <p className="text-sm text-muted-foreground">Solicitudes pendientes de revisión</p>
                 <p className="text-2xl font-bold">{pendientes}</p>
               </div>
             </CardContent>
@@ -143,7 +143,7 @@ export default function ClienteDashboard() {
                 <CreditCard className="h-6 w-6 text-red-700" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Pendiente de Pago</p>
+                <p className="text-sm text-muted-foreground">Pendiente de pago</p>
                 <p className="text-2xl font-bold">{formatCurrency(pendientePago)}</p>
               </div>
             </CardContent>
@@ -179,7 +179,7 @@ export default function ClienteDashboard() {
                         <td className="py-3 pr-4 font-medium">{f.serie}-{String(f.numero).padStart(4, "0")}</td>
                         <td className="py-3 pr-4">{formatDate(f.fecha_emision)}</td>
                         <td className="py-3 pr-4 font-medium">{formatCurrency(f.total)}</td>
-                        <td className="py-3 pr-4"><EstadoBadge estado={f.estado} /></td>
+                        <td className="py-3 pr-4"><EstadoBadge estado={f.estado} tipo="factura" /></td>
                         <td className="py-3">
                         <Button variant="ghost" size="sm" onClick={() => handleVerFactura(f)}>
                           <Eye className="mr-1 h-3.5 w-3.5" /> Ver
@@ -226,7 +226,7 @@ export default function ClienteDashboard() {
                         <td className="py-3 pr-4">{formatDate(s.created_at)}</td>
                         <td className="py-3 pr-4">{s.conceptos.length} concepto(s)</td>
                         <td className="py-3 pr-4 font-medium">{formatCurrency(calcImporte(s.conceptos))}</td>
-                        <td className="py-3"><EstadoBadge estado={s.estado} /></td>
+                        <td className="py-3"><EstadoBadge estado={s.estado} tipo="solicitud" /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -246,7 +246,7 @@ export default function ClienteDashboard() {
               <div className="space-y-6">
                 {/* Header Info */}
                 <div className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 p-4">
-                  <EstadoBadge estado={selectedFactura.estado} />
+                  <EstadoBadge estado={selectedFactura.estado} tipo="factura" />
                   <div className="text-sm">
                     <span className="text-muted-foreground">Emitida:</span>{" "}
                     <span className="font-medium">{formatDate(selectedFactura.fecha_emision)}</span>

@@ -16,10 +16,10 @@ import Link from "next/link"
 import type { SolicitudFactura } from "@/lib/types"
 import { useSearchParams } from "next/navigation"
 
-const filters = ["Todas", "Pendientes", "Aprobadas", "Rechazadas", "Facturadas"] as const
+const filters = ["Todas", "Pendientes de revisión", "Aprobadas", "Rechazadas", "Facturadas"] as const
 const filterMap: Record<string, string | undefined> = {
   Todas: undefined,
-  Pendientes: "pendiente",
+  "Pendientes de revisión": "pendiente",
   Aprobadas: "aprobada",
   Rechazadas: "rechazada",
   Facturadas: "facturada",
@@ -145,7 +145,7 @@ export default function SolicitudesPage() {
                       <td className="px-6 py-4">{formatDate(s.created_at)}</td>
                       <td className="px-6 py-4">{s.conceptos.length} concepto(s)</td>
                       <td className="px-6 py-4 font-medium">{formatCurrency(calcImporte(s.conceptos))}</td>
-                      <td className="px-6 py-4"><EstadoBadge estado={s.estado} /></td>
+                      <td className="px-6 py-4"><EstadoBadge estado={s.estado} tipo="solicitud" /></td>
                       <td className="px-6 py-4">
                         <Button variant="ghost" size="sm" onClick={() => setSelected(s)}>
                           <Eye className="mr-1 h-3.5 w-3.5" /> Ver
@@ -170,7 +170,7 @@ export default function SolicitudesPage() {
           {selected && (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <EstadoBadge estado={selected.estado} />
+                <EstadoBadge estado={selected.estado} tipo="solicitud" />
                 <span className="text-sm text-muted-foreground">{formatDate(selected.created_at)}</span>
               </div>
 
