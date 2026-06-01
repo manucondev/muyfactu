@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { NotificationBell } from "@/components/notification-bell"
+import { AiAssistant } from "@/components/ai-assistant"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -181,6 +182,7 @@ export default function ClienteLayout({ children }: { children: React.ReactNode 
           {children}
         </main>
       </div>
+      <AiAssistant userType="cliente" />
     </div>
   )
 }
