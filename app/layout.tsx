@@ -8,8 +8,8 @@ import { ScrollToTop } from "@/components/scroll-to-top"
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
 export const metadata: Metadata = {
-  title: "MuyFactu - Facturación Verifactu",
-  description: "Plataforma de facturación electrónica con cumplimiento Verifactu para asesorías y empresas",
+  title: "MuyFactu - Gestión de facturación",
+  description: "Plataforma SaaS para la gestión de clientes, solicitudes y facturas en asesorías y PYMEs",
 }
 
 export default function RootLayout({

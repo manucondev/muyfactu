@@ -9,6 +9,10 @@ import Link from "next/link"
 import { ArrowUpRight, TrendingUp } from "lucide-react"
 import { ClientAvatar } from "@/components/client-avatar"
 
+function getMonthKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
+}
+
 export default function AsesoriaHomePage() {
   const { asesoria } = useAuth()
   const supabase = createClient()
@@ -41,8 +45,8 @@ export default function AsesoriaHomePage() {
       const pendienteCobro = facturas.filter(f => f.estado === "pendiente").reduce((s, f) => s + f.total, 0)
 
       const now = new Date()
-      const mesActual = now.toISOString().substring(0, 7)
-      const mesAnterior = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().substring(0, 7)
+      const mesActual = getMonthKey(now)
+      const mesAnterior = getMonthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1))
       
       const facturasEsteMes = facturas.filter(f => f.fecha_emision.startsWith(mesActual)).length
       const facturasUltimoMes = facturas.filter(f => f.fecha_emision.startsWith(mesAnterior)).length
@@ -52,7 +56,7 @@ export default function AsesoriaHomePage() {
       const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dec"]
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const mesKey = d.toISOString().substring(0, 7)
+        const mesKey = getMonthKey(d)
         const total = facturas.filter(f => f.fecha_emision.startsWith(mesKey)).reduce((s, f) => s + f.total, 0)
         evolucionMensual.push({
           mes: meses[d.getMonth()],
@@ -156,37 +160,53 @@ export default function AsesoriaHomePage() {
               <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-primary/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
             </div>
 
-            {/* Gráfico simple de barras */}
-            <div className="rounded-lg border border-border/50 bg-card p-6">
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-base font-semibold">Evolución mensual</h2>
-                <p className="text-xs text-muted-foreground">Últimos 6 meses</p>
+            {/* Actividad reciente compacta */}
+            <div className="rounded-lg border border-border/50 bg-card">
+              <div className="border-b border-border/50 px-5 py-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-base font-semibold">Actividad reciente</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">Últimas facturas emitidas</p>
+                  </div>
+                  <Link 
+                    href="/asesoria/facturacion" 
+                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Ver todas →
+                  </Link>
+                </div>
               </div>
-              <div className="flex items-end justify-between gap-3" style={{ height: "160px" }}>
-                {stats.evolucionMensual.map((item, i) => {
-                  const height = item.max > 0 ? (item.total / item.max) * 100 : 0
-                  return (
-                    <div key={i} className="flex flex-1 flex-col items-center gap-3">
-                      <div className="relative w-full">
-                        <div 
-                          className="w-full rounded-t-md bg-primary/20 transition-all hover:bg-primary/30"
-                          style={{ height: `${Math.max(height, 2)}%` }}
-                        >
-                          <div 
-                            className="w-full rounded-t-md bg-primary transition-all"
-                            style={{ height: "100%" }}
-                          />
+              <div className="divide-y divide-border/40">
+                {stats.ultimasFacturas.length === 0 ? (
+                  <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+                    No hay facturas emitidas
+                  </div>
+                ) : (
+                  stats.ultimasFacturas.slice(0, 4).map(f => {
+                    const clienteNombre = (f as any).clientes?.nombre || "Sin nombre"
+                    return (
+                      <Link
+                        key={f.id}
+                        href="/asesoria/facturacion"
+                        className="flex items-center justify-between gap-4 px-5 py-3 transition-colors hover:bg-muted/40"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <ClientAvatar name={clienteNombre} className="h-8 w-8 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">{clienteNombre}</p>
+                            <p className="font-mono text-xs text-muted-foreground">{f.numero_factura} · {formatDate(f.fecha_emision)}</p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs font-medium text-muted-foreground">{item.mes}</p>
-                        {item.total > 0 && (
-                          <p className="mt-0.5 text-xs font-semibold tabular-nums">{formatCurrency(item.total)}</p>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-semibold tabular-nums">{formatCurrency(f.total)}</p>
+                          <p className={f.estado === "cobrada" ? "text-xs text-emerald-700" : "text-xs text-amber-700"}>
+                            {f.estado === "cobrada" ? "Cobrada" : "Pendiente de cobro"}
+                          </p>
+                        </div>
+                      </Link>
+                    )
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -240,84 +260,82 @@ export default function AsesoriaHomePage() {
           </div>
         </div>
 
-        {/* Tabla actividad reciente */}
-        <div className="rounded-lg border border-border/50 bg-card">
-          <div className="border-b border-border/50 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold">Actividad reciente</h2>
-              <Link 
-                href="/asesoria/facturacion" 
-                className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Ver todas →
-              </Link>
+        {/* Evolución mensual ampliada */}
+        <div className="rounded-lg border border-border/50 bg-card p-6">
+          <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold">Evolución mensual</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Facturación emitida durante los últimos 6 meses
+              </p>
             </div>
+            <p className="text-xs text-muted-foreground">Importes por mes</p>
           </div>
-          <div>
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border/50">
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Cliente
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Número
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Fecha
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Importe
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Estado
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.ultimasFacturas.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-muted-foreground">
-                      No hay facturas emitidas
-                    </td>
-                  </tr>
-                ) : (
-                  stats.ultimasFacturas.map(f => {
-                    const clienteNombre = (f as any).clientes?.nombre || "Sin nombre"
-                    return (
-                      <tr key={f.id} className="border-b border-border/30 transition-colors hover:bg-muted/40">
-                        <td className="px-6 py-3">
-                          <div className="flex items-center gap-3">
-                            <ClientAvatar name={clienteNombre} className="h-8 w-8" />
-                            <span className="font-medium">{clienteNombre}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-3">
-                          <span className="font-mono text-xs text-muted-foreground">{f.numero_factura}</span>
-                        </td>
-                        <td className="px-6 py-3">
-                          <span className="text-sm text-muted-foreground">{formatDate(f.fecha_emision)}</span>
-                        </td>
-                        <td className="px-6 py-3 text-right">
-                          <span className="font-semibold tabular-nums">{formatCurrency(f.total)}</span>
-                        </td>
-                        <td className="px-6 py-3">
-                          <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
-                            f.estado === "cobrada" 
-                              ? "bg-emerald-50 text-emerald-700" 
-                              : f.estado === "pendiente"
-                              ? "bg-amber-50 text-amber-700"
-                              : "bg-red-50 text-red-700"
-                          }`}>
-                            {f.estado === "pendiente" ? "Pendiente de cobro" : f.estado === "cobrada" ? "Cobrada" : f.estado}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
+
+          <div className="mt-2" style={{ height: 320 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "stretch",
+                gap: 18,
+                height: "100%",
+                width: "100%",
+              }}
+            >
+              {stats.evolucionMensual.map((item, i) => {
+                const height = item.max > 0 && item.total > 0 ? (item.total / item.max) * 100 : 0
+                const barHeight = item.total > 0 ? Math.max(height, 8) : 0
+
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      flex: 1,
+                      minWidth: 0,
+                      height: "100%",
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: "relative",
+                        display: "flex",
+                        alignItems: "flex-end",
+                        flex: 1,
+                        minHeight: 0,
+                        borderRadius: 14,
+                        background: "rgba(15, 23, 42, 0.035)",
+                        border: "1px solid rgba(15, 23, 42, 0.06)",
+                        padding: "12px 12px 0",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "100%",
+                          height: `${barHeight}%`,
+                          minHeight: item.total > 0 ? 8 : 0,
+                          borderRadius: "10px 10px 0 0",
+                          background: item.total > 0
+                            ? "linear-gradient(180deg, hsl(var(--primary)) 0%, rgba(59, 130, 246, 0.72) 100%)"
+                            : "transparent",
+                          boxShadow: item.total > 0 ? "0 10px 24px rgba(59, 130, 246, 0.18)" : "none",
+                          transition: "height 220ms ease",
+                        }}
+                        title={`${item.mes}: ${formatCurrency(item.total)}`}
+                      />
+                    </div>
+                    <div className="mt-3 text-center">
+                      <p className="text-xs font-medium text-muted-foreground">{item.mes}</p>
+                      <p className="mt-1 text-xs font-semibold tabular-nums text-foreground">
+                        {item.total > 0 ? formatCurrency(item.total) : "—"}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>

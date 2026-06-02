@@ -111,7 +111,7 @@ export default function GenerarFacturaPage() {
       if (sol) {
         setSolicitud(sol)
         setCliente(sol.clientes)
-        setObservaciones(sol.observaciones_cliente || "") // ✅ Cargar observaciones del cliente
+        setObservaciones(sol.observaciones_cliente || "")
 
         // Pre-fill lineas from conceptos
         const conceptos = sol.conceptos as Concepto[]
@@ -336,6 +336,17 @@ export default function GenerarFacturaPage() {
 
       if (!asesoria || !cliente) throw new Error("Datos incompletos")
 
+      const { data: plantillaConfig } = await supabase
+        .from("configuracion_plantilla")
+        .select("estilo, color_primario, footer_texto")
+        .eq("asesoria_id", asesoria.id)
+        .maybeSingle()
+
+      const estilosPermitidos = ["clasico", "moderno", "corporativo"] as const
+      const estiloPlantilla = estilosPermitidos.includes(plantillaConfig?.estilo as typeof estilosPermitidos[number])
+        ? (plantillaConfig?.estilo as typeof estilosPermitidos[number])
+        : "clasico"
+
       const pdfData = {
         numero_factura: numeroFactura,
         fecha_emision: fechaEmision,
@@ -368,6 +379,11 @@ export default function GenerarFacturaPage() {
           banco: cliente.banco || null,
           iban: cliente.iban || null,
           bic_swift: cliente.bic_swift || null,
+        },
+        plantilla: {
+          estilo: estiloPlantilla,
+          color_primario: plantillaConfig?.color_primario || "#4F46E5",
+          footer_texto: plantillaConfig?.footer_texto || null,
         },
         lineas: lineasInsert.map(l => ({
           concepto: l.concepto,
@@ -635,7 +651,7 @@ export default function GenerarFacturaPage() {
                   className="w-full"
                 >
                   {generating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-                  Generar Factura con Verifactu
+                  Generar factura
                 </Button>
                 
                 {!vistaPreviaVista && (

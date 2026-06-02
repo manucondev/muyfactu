@@ -9,7 +9,7 @@ import { AiAssistant } from "@/components/ai-assistant"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Menu, LogOut, User } from "lucide-react"
+import { Menu, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const mainNavItems = [
@@ -143,7 +143,7 @@ export default function AsesoriaLayout({ children }: { children: React.ReactNode
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top bar - más limpio */}
+        {/* Top bar */}
         <header className="flex h-16 items-center justify-between border-b border-border/50 bg-card px-6">
           <div className="flex items-center gap-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

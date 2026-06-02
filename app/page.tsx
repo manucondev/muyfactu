@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { FileText, Building2, User, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { motion } from "framer-motion"
 
@@ -96,7 +96,7 @@ export default function LoginPage() {
             animate={{ opacity: activeSide === "right" ? 0.7 : 1 }}
             className="mt-6 text-lg text-blue-100 leading-relaxed"
           >
-            Facturación electrónica adaptada a Verifactu, diseñada para asesorías y empresas que necesitan cumplimiento sin complicaciones.
+            Gestión de facturación para asesorías y empresas, con trazabilidad, control de clientes y apoyo mediante IA.
           </motion.p>
   
           {/* Imagen / logo que aparece al expandirse */}

@@ -410,7 +410,7 @@ export default function FacturasClientePage() {
               </div>
               {selected.qr_data && (
                 <div className="rounded-lg border bg-muted/30 p-4">
-                  <p className="mb-2 text-xs font-medium text-muted-foreground">✓ Factura con Verifactu</p>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">Registro técnico de factura</p>
                   <p className="font-mono text-xs text-muted-foreground">{selected.qr_data}</p>
                 </div>
               )}

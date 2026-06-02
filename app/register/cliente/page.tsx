@@ -18,7 +18,7 @@ export default function RegisterClientePage() {
     tipo: "empresa" as "empresa" | "particular",
     nombre: "", nif: "", email: "", password: "", confirmPassword: "",
     telefono: "", direccion: "", cp: "", ciudad: "", dias_pago: "30",
-    banco: "", iban: "", bic_swift: "",  // ✅ NUEVO
+    banco: "", iban: "", bic_swift: "",
   })
   const [asesorias, setAsesorias] = useState<Array<{ id: string; nombre: string; nif: string }>>([])
   const [selectedAsesoriaId, setSelectedAsesoriaId] = useState("")
@@ -69,9 +69,9 @@ export default function RegisterClientePage() {
           cp: form.cp || null,
           ciudad: form.ciudad || null,
           dias_pago: parseInt(form.dias_pago) || 30,
-          banco: form.banco || null,  // ✅ NUEVO
-          iban: form.iban || null,    // ✅ NUEVO
-          bic_swift: form.bic_swift || null,  // ✅ NUEVO
+          banco: form.banco || null,
+          iban: form.iban || null,
+          bic_swift: form.bic_swift || null,
         })
       if (clienteError) throw clienteError
 

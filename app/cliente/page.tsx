@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { EstadoBadge } from "@/components/estado-badge"
 import { EmptyState } from "@/components/empty-state"
 import { formatCurrency, formatDate, calcImporte } from "@/lib/format"
-import { FileStack, Receipt, CreditCard, FilePlus, Eye } from "lucide-react"
+import { FileStack, Receipt, Eye } from "lucide-react"
 import Link from "next/link"
 import type { SolicitudFactura, Factura } from "@/lib/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -107,7 +107,6 @@ export default function ClienteDashboard() {
           </div>
           <Button asChild>
             <Link href="/cliente/nueva-solicitud">
-              <FilePlus className="mr-2 h-4 w-4" />
               Nueva Solicitud
             </Link>
           </Button>
@@ -115,36 +114,30 @@ export default function ClienteDashboard() {
 
         {/* KPIs */}
         <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100">
-                <FileStack className="h-6 w-6 text-amber-700" />
-              </div>
-              <div>
+          <Card className="overflow-hidden">
+            <CardContent className="flex items-center gap-4 p-0">
+              <div className="h-24 w-1.5 bg-amber-400" />
+              <div className="py-6 pr-6">
                 <p className="text-sm text-muted-foreground">Solicitudes pendientes de revisión</p>
-                <p className="text-2xl font-bold">{pendientes}</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{pendientes}</p>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100">
-                <Receipt className="h-6 w-6 text-blue-700" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Facturas este Mes</p>
-                <p className="text-2xl font-bold">{facMes}</p>
+          <Card className="overflow-hidden">
+            <CardContent className="flex items-center gap-4 p-0">
+              <div className="h-24 w-1.5 bg-blue-500" />
+              <div className="py-6 pr-6">
+                <p className="text-sm text-muted-foreground">Facturas este mes</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{facMes}</p>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100">
-                <CreditCard className="h-6 w-6 text-red-700" />
-              </div>
-              <div>
+          <Card className="overflow-hidden">
+            <CardContent className="flex items-center gap-4 p-0">
+              <div className="h-24 w-1.5 bg-red-400" />
+              <div className="py-6 pr-6">
                 <p className="text-sm text-muted-foreground">Pendiente de pago</p>
-                <p className="text-2xl font-bold">{formatCurrency(pendientePago)}</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{formatCurrency(pendientePago)}</p>
               </div>
             </CardContent>
           </Card>

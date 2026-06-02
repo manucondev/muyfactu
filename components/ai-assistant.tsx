@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
-import { Loader2, MessageSquareText, RotateCcw, Send, X } from "lucide-react"
+import { Loader2, RotateCcw, Send, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -160,10 +160,11 @@ export function AiAssistant({ userType }: AiAssistantProps) {
       <Button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 h-11 rounded-full px-4 shadow-lg"
+        aria-label="Abrir AsesorIA"
+        title="Abrir AsesorIA"
+        className="fixed bottom-6 right-6 z-40 h-12 w-12 rounded-full p-0 text-sm font-semibold tracking-tight shadow-lg"
       >
-        <MessageSquareText className="mr-2 h-4 w-4" />
-        AsesorIA
+        IA
       </Button>
     )
   }
@@ -172,8 +173,8 @@ export function AiAssistant({ userType }: AiAssistantProps) {
     <aside className="fixed inset-x-3 bottom-3 z-40 flex h-[78vh] flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl sm:inset-x-auto sm:bottom-6 sm:right-6 sm:top-20 sm:h-auto sm:w-[410px]">
       <header className="flex items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full border bg-muted text-muted-foreground">
-            <MessageSquareText className="h-4 w-4" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-full border bg-muted text-xs font-semibold text-muted-foreground">
+            IA
           </div>
           <div>
             <p className="text-sm font-semibold leading-tight">AsesorIA</p>

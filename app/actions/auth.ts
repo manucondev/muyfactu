@@ -75,11 +75,11 @@ export async function registerCliente(formData: {
   cp?: string
   ciudad?: string
   dias_pago: number
-  banco?: string       // ✅ NUEVO
-  iban?: string        // ✅ NUEVO
+  banco?: string
+  iban?: string
   bic_swift?: string
   asesoria_id: string
-  asesoria_nombre?: string  // ✅ AÑADIR
+  asesoria_nombre?: string
 }) {
   try {
     const supabase = await createClient()
@@ -148,9 +148,9 @@ export async function registerCliente(formData: {
         cp: formData.cp || null,
         ciudad: formData.ciudad || null,
         dias_pago: formData.dias_pago,
-        banco: formData.banco || null,           // ✅ NUEVO
-        iban: formData.iban || null,             // ✅ NUEVO
-        bic_swift: formData.bic_swift || null,   // ✅ NUEVO
+        banco: formData.banco || null,
+        iban: formData.iban || null,
+        bic_swift: formData.bic_swift || null,
       })
 
     if (clienteError) {

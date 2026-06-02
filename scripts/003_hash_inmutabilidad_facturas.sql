@@ -25,7 +25,7 @@ begin
   ) then
     alter table public.facturas
       add constraint facturas_hash_sha256_format_check
-      check (hash_sha256 is null or hash_sha256 ~ '^[A-F0-9]{64}$') not valid;
+      check (hash_sha256 is null or hash_sha256 ~ '^[A-Fa-f0-9]{64}$') not valid;
   end if;
 end $$;
 
@@ -36,7 +36,7 @@ begin
   ) then
     alter table public.facturas
       add constraint facturas_hash_anterior_format_check
-      check (hash_anterior is null or hash_anterior ~ '^[A-F0-9]{64}$') not valid;
+      check (hash_anterior is null or hash_anterior ~ '^[A-Fa-f0-9]{64}$') not valid;
   end if;
 end $$;
 
@@ -93,7 +93,11 @@ declare
   factura_hash text;
   factura_ref uuid;
 begin
-  factura_ref := coalesce(new.factura_id, old.factura_id);
+  if tg_op = 'DELETE' then
+    factura_ref := old.factura_id;
+  else
+    factura_ref := new.factura_id;
+  end if;
 
   select f.hash_sha256
     into factura_hash

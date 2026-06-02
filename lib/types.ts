@@ -8,11 +8,13 @@ export interface Asesoria {
   telefono: string | null
   direccion: string | null
   ciudad: string | null
+  provincia: string | null
   logo_url: string | null
   certificado_url: string | null
   certificado_password_encrypted: string | null
   estado: string | null
   created_at: string
+  updated_at: string | null
 }
 
 export interface UsuarioAsesoria {
@@ -21,6 +23,8 @@ export interface UsuarioAsesoria {
   asesoria_id: string
   nombre: string
   email: string
+  rol: string | null
+  ultimo_acceso: string | null
   created_at: string
 }
 
@@ -38,9 +42,9 @@ export interface Cliente {
   ciudad: string | null
   provincia: string | null
   dias_pago: number
-  banco: string | null  // ✅ NUEVO
-  iban: string | null   // ✅ NUEVO
-  bic_swift: string | null  // ✅ NUEVO
+  banco: string | null
+  iban: string | null
+  bic_swift: string | null
   estado: "activo" | "inactivo"
   created_at: string
 }
@@ -56,7 +60,7 @@ export interface Concepto {
 export interface SolicitudFactura {
   id: string
   cliente_id: string
-  asesoria_id: string
+  asesoria_id?: string
   conceptos: Concepto[]
   observaciones_cliente: string | null
   observaciones_asesoria: string | null
@@ -75,14 +79,14 @@ export interface Factura {
   asesoria_id: string
   cliente_id: string
   solicitud_id: string | null
-  numero_factura: string  // ✅ Añadir esta
+  numero_factura: string
   serie: string
-  numero: number  // ✅ Añadir esta si no está
+  numero: number
   fecha_emision: string
   fecha_vencimiento: string
   base_imponible: number
   iva_total: number
-  retencion_irpf: number  // ✅ Añadir esta
+  retencion_irpf: number
   total: number
   estado: string
   fecha_cobro: string | null
@@ -96,39 +100,32 @@ export interface Factura {
   observaciones: string | null
   created_at: string
   created_by: string | null
+  registro_version: string | null
 }
 
 export interface LineaFactura {
   id: string
   factura_id: string
+  orden: number
   concepto: string
   cantidad: number
   precio_unitario: number
-  iva_porcentaje: number
-  subtotal: number
-  iva_importe: number
-  total: number
+  porcentaje_iva: number
+  importe_linea: number
 }
 
 export interface Notificacion {
   id: string
   destinatario_id: string
-  tipo_destinatario: string | null
+  tipo_destinatario: string
   tipo: string
   titulo: string
   mensaje: string
-  link: string | null      // ✅ era enlace
+  link: string | null
   leida: boolean
   created_at: string
 }
 
-export interface CertificadoDigital {
-  id: string
-  asesoria_id: string
-  nombre_archivo: string
-  estado: "activo" | "caducado" | "sin_certificado"
-  fecha_subida: string | null
-}
 
 export interface ConfiguracionPlantilla {
   id: string
